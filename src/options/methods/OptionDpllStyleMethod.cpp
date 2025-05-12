@@ -38,15 +38,14 @@ OptionDpllStyleMethod::OptionDpllStyleMethod(
   optionBranchingHeuristic =
       OptionBranchingHeuristic(config.branchingHeuristic);
 
-  // Partitioning heuristic:
-  optionPartitioningHeuristic =
-      OptionPartitioningHeuristic(config.partitioningHeuristic);
-
   // Set the solver.
   optionSolver = {config.solver.solverName};
 
   // Set the spec manager.
-  optionSpecManager = {config.spec.specUpdateType};
+  optionSpecManager = {config.spec.specUpdateType, config.spec.removeGates};
+
+  // set the use of the model
+  exploitModel = config.exploitModel;
 }  // constructor
 
 }  // namespace d4

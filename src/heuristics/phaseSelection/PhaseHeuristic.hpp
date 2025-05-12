@@ -18,9 +18,9 @@
  */
 #pragma once
 
+#include <src/formulaManager/FormulaManager.hpp>
 #include <src/problem/ProblemTypes.hpp>
 #include <src/solvers/PolarityManager.hpp>
-#include <src/specs/SpecManager.hpp>
 
 #include "src/options/branchingHeuristic/OptionBranchingHeuristic.hpp"
 
@@ -33,7 +33,7 @@ class PhaseHeuristic {
  public:
   virtual ~PhaseHeuristic() {}
   static PhaseHeuristic *makePhaseHeuristic(
-      const OptionBranchingHeuristic &options, SpecManager &s,
+      const OptionBranchingHeuristic &options, FormulaManager &s,
       PolarityManager &p, std::ostream &out);
 
   virtual bool selectPhase(Var v) = 0;

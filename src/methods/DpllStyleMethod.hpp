@@ -28,8 +28,10 @@
 #include "src/caching/CacheManager.hpp"
 #include "src/caching/CachedBucket.hpp"
 #include "src/caching/TmpEntry.hpp"
-#include "src/heuristics/BranchingHeuristic.hpp"
-#include "src/heuristics/partitioning/PartitioningHeuristic.hpp"
+#include "src/formulaManager/FormulaManager.hpp"
+#include "src/heuristics/branchingHeuristic/BranchingHeuristic.hpp"
+#include "src/heuristics/partialOrder/PartialOrderHeuristic.hpp"
+#include "src/heuristics/partialOrder/PartialOrderHeuristicNone.hpp"
 #include "src/options/cache/OptionCacheManager.hpp"
 #include "src/options/methods/OptionDpllStyleMethod.hpp"
 #include "src/options/solvers/OptionSolver.hpp"
@@ -37,10 +39,9 @@
 #include "src/problem/ProblemManager.hpp"
 #include "src/problem/ProblemTypes.hpp"
 #include "src/solvers/WrapperSolver.hpp"
-#include "src/specs/SpecManager.hpp"
 #include "src/utils/MemoryStat.hpp"
 
-#define NB_SEP_MC 104
+#define NB_SEP_MC 92
 #define MASK_SHOWRUN_MC ((2 << 13) - 1)
 #define WIDTH_PRINT_COLUMN_MC 12
 #define MASK_HEADER 1048575
@@ -68,6 +69,10 @@ class DpllStyleMethod : public MethodManager, public Counter<T> {
   unsigned m_freqDecay;
   bool m_isProjectedMode;
 
+  bool m_connectedComponent;
+  unsigned m_lastNbSplit;
+  unsigned m_nbFailedIncreased;
+
   std::vector<unsigned> m_stampVar;
   std::vector<std::vector<Lit>> m_clauses;
   std::vector<bool> m_isDecisionVariable;
@@ -76,10 +81,9 @@ class DpllStyleMethod : public MethodManager, public Counter<T> {
 
   ProblemManager *m_problem;
   WrapperSolver *m_solver;
-  SpecManager *m_specs;
+  FormulaManager *m_specs;
 
   BranchingHeuristic *m_heuristic;
-  PartitioningHeuristic *m_hCutSet;
   TmpEntry<U> NULL_CACHE_ENTRY;
   CacheManager<U> *m_cache;
 
@@ -103,35 +107,23 @@ class DpllStyleMethod : public MethodManager, public Counter<T> {
 
     m_out << "c [DPLL STYLE METHOD]" << options << "\n";
 
-    // we create and init the SAT solver.
-    m_solver = WrapperSolver::makeWrapperSolver(options.optionSolver, m_out);
+    // we create and init the solver.
+    m_solver = WrapperSolver::makeWrapperSolver(options.optionSolver,
+                                                *m_problem, m_out);
     m_solver->initSolver(*m_problem);
     m_solver->setNeedModel(true);
 
-    // we initialize the object that will give info about the problem.
-    m_specs = SpecManager::makeSpecManager(options.optionSpecManager,
-                                           *m_problem, m_out);
+    m_isProjectedMode = m_problem->getNbSelectedVar() > 0;
+    m_connectedComponent = true;
+    m_nbFailedIncreased = m_lastNbSplit = 0;
 
-    // select the partitioner regarding if it projected model counting or not.
-    if ((m_isProjectedMode = m_problem->getNbSelectedVar())) {
-      m_out << "c [MODE] projected\n";
-      m_hCutSet = PartitioningHeuristic::makePartitioningHeuristicNone(m_out);
-      if (options.optionBranchingHeuristic.branchingHeuristicType ==
-          BRANCHING_LARGE_ARITY) {
-        m_out << "c [BRANCHING HEURISTIC] Cannot use the heuristic that branch "
-                 "on clauses\n";
-        options.optionBranchingHeuristic.branchingHeuristicType ==
-            BRANCHING_CLASSIC;
-      }
-    } else {
-      m_out << "c [MODE] classic\n";
-      m_hCutSet = PartitioningHeuristic::makePartitioningHeuristic(
-          options.optionPartitioningHeuristic, *m_specs, *m_solver, m_out);
-    }
+    // we initialize the object that will give info about the problem.
+    m_specs = FormulaManager::makeFormulaManager(options.optionSpecManager,
+                                                 *m_problem, m_out);
 
     // we initialize the object used to compute score and partition.
     m_heuristic = BranchingHeuristic::makeBranchingHeuristic(
-        options.optionBranchingHeuristic, m_specs, m_solver, m_out);
+        options.optionBranchingHeuristic, m_problem, m_specs, m_solver, m_out);
 
     // specify which variables are decisions, and which are not.
     m_isDecisionVariable.clear();
@@ -167,7 +159,6 @@ class DpllStyleMethod : public MethodManager, public Counter<T> {
     delete m_solver;
     delete m_specs;
     delete m_heuristic;
-    delete m_hCutSet;
     delete m_cache;
   }  // destructor
 
@@ -240,8 +231,7 @@ class DpllStyleMethod : public MethodManager, public Counter<T> {
         << std::setw(WIDTH_PRINT_COLUMN_MC) << m_cache->usedMemory() << "|"
         << std::setw(WIDTH_PRINT_COLUMN_MC) << m_nbSplit << "|"
         << std::setw(WIDTH_PRINT_COLUMN_MC) << MemoryStat::memUsedPeak() << "|"
-        << std::setw(WIDTH_PRINT_COLUMN_MC) << m_nbDecisionNode << "|"
-        << std::setw(WIDTH_PRINT_COLUMN_MC) << m_callPartitioner << "|\n";
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << m_nbDecisionNode << "|\n";
   }  // showInter
 
   /**
@@ -262,16 +252,13 @@ class DpllStyleMethod : public MethodManager, public Counter<T> {
   */
   inline void showHeader(std::ostream &out) {
     separator(out);
-    out << "c "
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "time"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "#posHit"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "#negHit"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "memory"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "#split"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "mem(MB)"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "#dec. Node"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "#cutter"
-        << "|\n";
+    out << "c " << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "time" << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << "#posHit" << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << "#negHit" << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << "memory" << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << "#split" << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << "mem(MB)" << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << "#dec. Node" << "|\n";
     separator(out);
   }  // showHeader
 
@@ -282,7 +269,9 @@ class DpllStyleMethod : public MethodManager, public Counter<T> {
    */
   inline void showRun(std::ostream &out) {
     if (!(m_nbCallCall & (MASK_HEADER))) showHeader(out);
-    if (m_nbCallCall && !(m_nbCallCall & MASK_SHOWRUN_MC)) showInter(out);
+    if (m_nbCallCall && !(m_nbCallCall & MASK_SHOWRUN_MC)) {
+      showInter(out);
+    }
   }  // showRun
 
   /**
@@ -298,14 +287,9 @@ class DpllStyleMethod : public MethodManager, public Counter<T> {
     out << "c Number of recursive call: " << m_nbCallCall << "\n";
     out << "c Number of split formula: " << m_nbSplit << "\n";
     out << "c Number of decision: " << m_nbDecisionNode << "\n";
-    out << "c Number of paritioner calls: " << m_callPartitioner << "\n";
     out << "c\n";
-    m_specs->printSpecInformation(out);
+    m_specs->printInformation(out);
     m_cache->printCacheInformation(out);
-    if (m_hCutSet) {
-      out << "c\n";
-      m_hCutSet->displayStat(out);
-    }
     out << "c Final time: " << getTimer() << "\n";
     out << "c\n";
   }  // printFinalStat
@@ -331,7 +315,50 @@ class DpllStyleMethod : public MethodManager, public Counter<T> {
   }  // cacheIsActivated
 
   /**
-   * Call the CNF formula into a FBDD.
+   * @brief Compute the connected component.
+   *
+   * @param setOfVar is the set of variables under consideration.
+   * @param varConnected are the computed connected component.
+   * @param freeVariable are the free variables.
+   * @return is the number of components.
+   */
+  inline int computeConnectedComponent(
+      std::vector<Var> &setOfVar, std::vector<std::vector<Var>> &varConnected,
+      std::vector<Var> &freeVariable) {
+    if (m_connectedComponent && !(m_nbCallCall % 10000)) {
+      if (m_lastNbSplit == m_nbSplit)
+        m_nbFailedIncreased++;
+      else {
+        m_nbFailedIncreased = 0;
+        m_lastNbSplit = m_nbSplit;
+      }
+
+      m_connectedComponent = m_nbFailedIncreased < 11;
+      if (!m_connectedComponent)
+        std::cout << "c [CONNECTED COMPONENT] Stop searching for connected "
+                     "component\n";
+    }
+
+    if (m_connectedComponent || !(m_nbCallCall % 500)) {
+      unsigned ret = m_specs->computeConnectedComponent(varConnected, setOfVar,
+                                                        freeVariable);
+
+      if (ret > 1 && !m_connectedComponent) {
+        std::cout << "c [CONNECTECT COMPONENT] Start for searching for "
+                     "connected component\n";
+        m_nbFailedIncreased = 0;
+        m_connectedComponent = true;
+      }
+      return ret;
+    }
+
+    // move the free variables.
+    return m_specs->computeTrivialConnectedComponent(varConnected, setOfVar,
+                                                     freeVariable);
+  }  // computeConnectedComponent
+
+  /**
+   * Compile the CNF formula into a FBDD.
    *
    * @param[in] setOfVar, the current set of considered variables
    * @param[in] unitsLit, the set of unit literal detected at this level
@@ -345,7 +372,6 @@ class DpllStyleMethod : public MethodManager, public Counter<T> {
              std::vector<Var> &freeVariable, std::ostream &out) {
     showRun(out);
     m_nbCallCall++;
-
     if (!m_solver->solve(setOfVar)) return m_operation->manageBottom();
 
     m_solver->whichAreUnits(setOfVar, unitsLit);  // collect unit literals
@@ -353,8 +379,8 @@ class DpllStyleMethod : public MethodManager, public Counter<T> {
 
     // compute the connected composant
     std::vector<std::vector<Var>> varConnected;
-    int nbComponent = m_specs->computeConnectedComponent(varConnected, setOfVar,
-                                                         freeVariable);
+    int nbComponent =
+        computeConnectedComponent(setOfVar, varConnected, freeVariable);
     expelNoDecisionVar(freeVariable, m_isDecisionVariable);
 
     // consider each connected component.
@@ -372,73 +398,39 @@ class DpllStyleMethod : public MethodManager, public Counter<T> {
         else {
           // recursive call
           tab[cp] = computeDecisionNode(connected, out);
-
           if (cacheActivated) m_cache->addInCache(cb, tab[cp]);
         }
       }
 
+      // m_specs->postUpdate(additionalUnit);
       m_specs->postUpdate(unitsLit);
+      expelNoDecisionLit(unitsLit, m_isDecisionVariable);
+
       return m_operation->manageDecomposableAnd(tab, nbComponent);
     }  // else we have a tautology
 
+    // m_specs->postUpdate(additionalUnit);
     m_specs->postUpdate(unitsLit);
     expelNoDecisionLit(unitsLit, m_isDecisionVariable);
-
     return m_operation->createTop();
   }  // compute_
 
   /**
-   * @brief Set the Current Priority.
-   *
-   * @param cutSet is the set of variables that become decision variables.
-   */
-  inline void setCurrentPriority(std::vector<Var> &cutSet) {
-    for (auto &v : cutSet)
-      if (m_isDecisionVariable[v]) m_currentPrioritySet[v] = true;
-  }  // setCurrentPriority
-
-  /**
-   * @brief Unset the Current Priority.
-   *
-   * @param cutSet is the set of variables that become decision variables.
-   */
-  inline void unsetCurrentPriority(std::vector<Var> &cutSet) {
-    for (auto &v : cutSet)
-      if (m_isDecisionVariable[v]) m_currentPrioritySet[v] = false;
-  }  // setCurrentPriority
-
-  /**
      This function select a variable and compile a decision node.
 
-     @param[in] connected, the set of variable present in the current problem.
+     @param[in] connected, the set of variable present in the current
+     problem.
      @param[in] out, the stream whare are printed out the logs.
 
      \return the compiled formula.
   */
   U computeDecisionNode(std::vector<Var> &connected, std::ostream &out) {
     std::vector<Var> cutSet;
-    bool hasPriority = false, hasVariable = false;
-
-    for (auto v : connected) {
-      if (m_specs->varIsAssigned(v) || !m_isDecisionVariable[v]) continue;
-      hasVariable = true;
-      if ((hasPriority = m_currentPrioritySet[v])) break;
-    }
-
-    if (hasVariable && !hasPriority && m_hCutSet->isReady(connected)) {
-      m_hCutSet->computeCutSet(connected, cutSet);
-      m_callPartitioner++;
-      setCurrentPriority(cutSet);
-    }
 
     // search the next variable to branch on
-
     ListLit lits;
-    m_heuristic->selectLitSet(connected, m_currentPrioritySet, lits);
-    if (!lits.size()) {
-      unsetCurrentPriority(cutSet);
-      return m_operation->manageTop(connected);
-    }
+    m_heuristic->selectLitSet(connected, lits);
+    if (!lits.size()) return m_operation->manageTop(connected);
     m_nbDecisionNode++;
 
     // compile the formula where l is assigned to true
@@ -455,19 +447,24 @@ class DpllStyleMethod : public MethodManager, public Counter<T> {
       if (i != lits.size()) m_solver->pushAssumption(lits[i]);
 
       b[nb].d = compute_(connected, b[nb].unitLits, b[nb].freeVars, out);
+#if 0
+      std::cout << "==============================================\n";
+      std::cout << "free : ";
+      for (auto &v : b[nb].freeVars) std::cout << v << ' ';
+      std::cout << '\n';
+      std::cout << "trail: ";
+      m_solver->displayAssumption(std::cout);
+      std::cout << b[nb].d * m_problem->computeWeightUnitFree<U>(b[nb].unitLits,
+                                                                 b[nb].freeVars)
+                << "\n";
+#endif
       nb++;
     }
 
-#if 0
-    std::cout << "trail: ";
-    m_solver->showTrail();
-    std::cout << lits[0] << " -> res: ";
-    std::cout << b[0].d << ' ' << b[0].d << '\n';
-#endif
     // reinit some variables.
     assert(m_solver->sizeAssumption() > sizeAssum);
     m_solver->popAssumption(m_solver->sizeAssumption() - sizeAssum);
-    unsetCurrentPriority(cutSet);
+
     return m_operation->manageDeterministOr(b, nb);
   }  // computeDecisionNode
 
@@ -484,8 +481,12 @@ class DpllStyleMethod : public MethodManager, public Counter<T> {
   */
   U compute(std::vector<Var> &setOfVar, std::ostream &out,
             bool warmStart = true) {
+    std::vector<Var> decisionVar;
+    for (auto &v : setOfVar)
+      if (m_isDecisionVariable[v]) decisionVar.push_back(v);
+
     if (m_problem->isUnsat() ||
-        (warmStart && !m_solver->warmStart(29, 11, setOfVar, m_out)))
+        (warmStart && !m_solver->warmStart(29, 11, decisionVar, m_out)))
       return m_operation->manageBottom();
     DataBranch<U> b;
 
@@ -495,16 +496,16 @@ class DpllStyleMethod : public MethodManager, public Counter<T> {
 
  public:
   /**
-     Given an assumption, we compute the number of models.  That is different
-     from the query strategy, where we first compute and then condition the
-     computed structure.
+     Given an assumption, we compute the number of models.  That is
+     different from the query strategy, where we first compute and then
+     condition the computed structure.
 
      @param[in] setOfVar, the set of variables of the considered problem.
      @param[in] assumption, the set of literals we want to assign.
      @param[in] out, the stream where are print out the log.
 
-     \return the number of models when the formula is simplified by the given
-     assumption.
+     \return the number of models when the formula is simplified by the
+     given assumption.
    */
   T count(std::vector<Var> &setOfVar, std::vector<Lit> &assumption,
           std::ostream &out) {

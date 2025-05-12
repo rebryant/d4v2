@@ -36,19 +36,19 @@
 #include "src/caching/CacheManager.hpp"
 #include "src/caching/CachedBucket.hpp"
 #include "src/caching/TmpEntry.hpp"
-#include "src/heuristics/partitioning/PartitioningHeuristic.hpp"
+#include "src/formulaManager/FormulaManager.hpp"
+#include "src/heuristics/partialOrder/PartialOrderHeuristic.hpp"
 #include "src/heuristics/phaseSelection/PhaseHeuristic.hpp"
 #include "src/heuristics/scoringVariable/ScoringMethod.hpp"
 #include "src/methods/nnf/Node.hpp"
 #include "src/options/branchingHeuristic/OptionBranchingHeuristic.hpp"
+#include "src/options/formulaManager/OptionFormulaManager.hpp"
 #include "src/options/methods/OptionMaxSharpSatMethod.hpp"
 #include "src/options/solvers/OptionSolver.hpp"
-#include "src/options/specs/OptionSpecManager.hpp"
 #include "src/preprocs/PreprocManager.hpp"
 #include "src/problem/ProblemManager.hpp"
 #include "src/problem/ProblemTypes.hpp"
 #include "src/solvers/WrapperSolver.hpp"
-#include "src/specs/SpecManager.hpp"
 #include "src/utils/MemoryStat.hpp"
 
 namespace d4 {
@@ -108,7 +108,7 @@ class MaxSharpSAT : public MethodManager {
 
   ProblemManager *m_problem;
   WrapperSolver *m_solver;
-  SpecManager *m_specs;
+  FormulaManager *m_specs;
   ScoringMethod *m_hVarMax;
   PhaseHeuristic *m_hPhaseMax;
   ScoringMethod *m_hVarInd;
@@ -152,14 +152,15 @@ class MaxSharpSAT : public MethodManager {
     m_greedyInitActivated = options.greedyInitActivated;
 
     // we create the SAT solver.
-    m_solver = WrapperSolver::makeWrapperSolver(options.optionSolver, m_out);
+    m_solver = WrapperSolver::makeWrapperSolver(options.optionSolver,
+                                                *m_problem, m_out);
     assert(m_solver);
     m_solver->initSolver(*m_problem);
     m_solver->setNeedModel(true);
 
     // we initialize the object that will give info about the problem.
-    m_specs = SpecManager::makeSpecManager(options.optionSpecManager,
-                                           *m_problem, m_out);
+    m_specs = FormulaManager::makeFormulaManager(options.optionSpecManager,
+                                                 *m_problem, m_out);
     assert(m_specs);
 
     // we initialize the object used to compute score and partition.
@@ -272,17 +273,17 @@ class MaxSharpSAT : public MethodManager {
      @param[in] out, the stream we use to print out information.
   */
   inline void showInter(std::ostream &out) {
-    out << "c "
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << m_nbCallCall << std::fixed
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << m_nbCallProj << std::fixed
-        << std::setprecision(2) << "|" << std::setw(WIDTH_PRINT_COLUMN_MC)
-        << getTimer() << "|" << std::setw(WIDTH_PRINT_COLUMN_MC)
-        << m_cacheMax->getNbPositiveHit() << "|"
-        << std::setw(WIDTH_PRINT_COLUMN_MC) << m_cacheMax->getNbNegativeHit()
+    out << "c " << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << m_nbCallCall
+        << std::fixed << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << m_nbCallProj
+        << std::fixed << std::setprecision(2) << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << getTimer() << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << m_cacheMax->getNbPositiveHit()
         << "|" << std::setw(WIDTH_PRINT_COLUMN_MC)
-        << m_cacheInd->getNbPositiveHit() << "|"
-        << std::setw(WIDTH_PRINT_COLUMN_MC) << m_cacheInd->getNbNegativeHit()
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << m_nbSplitMax << "|"
+        << m_cacheMax->getNbNegativeHit() << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << m_cacheInd->getNbPositiveHit()
+        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC)
+        << m_cacheInd->getNbNegativeHit() << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << m_nbSplitMax << "|"
         << std::setw(WIDTH_PRINT_COLUMN_MC) << m_nbSplitInd << "|"
         << std::setw(WIDTH_PRINT_COLUMN_MC) << m_cacheInd->usedMemory() << "|"
         << std::setw(WIDTH_PRINT_COLUMN_MC) << MemoryStat::memUsedPeak() << "|"
@@ -309,21 +310,19 @@ class MaxSharpSAT : public MethodManager {
   */
   inline void showHeader(std::ostream &out) {
     separator(out);
-    out << "c "
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "#call(m)"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "#call(i)"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "time"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "#posHit(m)"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "#negHit(m)"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "#posHit(i)"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "#negHit(i)"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "#split(m)"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "#split(i)"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "memory"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "mem(MB)"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "#dec. Node"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "max#count"
-        << "|\n";
+    out << "c " << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "#call(m)" << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << "#call(i)" << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << "time" << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << "#posHit(m)" << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << "#negHit(m)" << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << "#posHit(i)" << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << "#negHit(i)" << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << "#split(m)" << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << "#split(i)" << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << "memory" << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << "mem(MB)" << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << "#dec. Node" << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << "max#count" << "|\n";
     separator(out);
   }  // showHeader
 

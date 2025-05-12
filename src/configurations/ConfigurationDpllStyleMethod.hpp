@@ -21,9 +21,9 @@
 #include "Configuration.hpp"
 #include "ConfigurationBranchingHeuristic.hpp"
 #include "ConfigurationCache.hpp"
-#include "ConfigurationPartitioningHeuristic.hpp"
+#include "ConfigurationFormulaManager.hpp"
+#include "ConfigurationPartialOrderHeuristic.hpp"
 #include "ConfigurationSolver.hpp"
-#include "ConfigurationSpec.hpp"
 #include "src/options/methods/OptionOperationManager.hpp"
 
 namespace d4 {
@@ -35,6 +35,6 @@ class ConfigurationDpllStyleMethod : public Configuration {
   ConfigurationSolver solver;
   ConfigurationSpec spec;
   ConfigurationBranchingHeuristic branchingHeuristic;
-  ConfigurationPartitioningHeuristic partitioningHeuristic;
+  bool exploitModel = true;
 };
 }  // namespace d4

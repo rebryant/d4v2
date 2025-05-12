@@ -39,7 +39,8 @@
 #include "src/caching/CacheManager.hpp"
 #include "src/caching/CachedBucket.hpp"
 #include "src/caching/TmpEntry.hpp"
-#include "src/heuristics/partitioning/PartitioningHeuristic.hpp"
+#include "src/formulaManager/FormulaManager.hpp"
+#include "src/heuristics/partialOrder/PartialOrderHeuristic.hpp"
 #include "src/heuristics/phaseSelection/PhaseHeuristic.hpp"
 #include "src/heuristics/scoringVariable/ScoringMethod.hpp"
 #include "src/methods/nnf/Node.hpp"
@@ -48,7 +49,6 @@
 #include "src/problem/ProblemManager.hpp"
 #include "src/problem/ProblemTypes.hpp"
 #include "src/solvers/WrapperSolver.hpp"
-#include "src/specs/SpecManager.hpp"
 #include "src/utils/MemoryStat.hpp"
 
 #define TEST 0
@@ -116,7 +116,7 @@ class ExistRandomExist : public MethodManager {
 
   ProblemManager *m_problem;
   WrapperSolver *m_solver;
-  SpecManager *m_specs;
+  FormulaManager *m_specs;
   ScoringMethod *m_hVarExist;
   ScoringMethod *m_hVarRandom;
   PhaseHeuristic *m_hPhaseExist;
@@ -170,14 +170,15 @@ class ExistRandomExist : public MethodManager {
     srand(0);
 
     // we create the SAT solver.
-    m_solver = WrapperSolver::makeWrapperSolver(options.optionSolver, m_out);
+    m_solver = WrapperSolver::makeWrapperSolver(options.optionSolver,
+                                                *m_problem, m_out);
     assert(m_solver);
     m_solver->initSolver(*m_problem);
     m_solver->setNeedModel(true);
 
     // we initialize the object that will give info about the problem.
-    m_specs = SpecManager::makeSpecManager(options.optionSpecManager,
-                                           *m_problem, m_out);
+    m_specs = FormulaManager::makeFormulaManager(options.optionSpecManager,
+                                                 *m_problem, m_out);
 
     // we initialize the object used to compute score and partition.
     m_hVarExist = ScoringMethod::makeScoringMethod(
@@ -287,17 +288,17 @@ class ExistRandomExist : public MethodManager {
      @param[in] out, the stream we use to print out information.
   */
   inline void showInter(std::ostream &out) {
-    out << "c "
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << m_nbCallCall << std::fixed
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << m_nbCallProj << std::fixed
-        << std::setprecision(2) << "|" << std::setw(WIDTH_PRINT_COLUMN_MC)
-        << getTimer() << "|" << std::setw(WIDTH_PRINT_COLUMN_MC)
-        << m_cacheExist->getNbPositiveHit() << "|"
-        << std::setw(WIDTH_PRINT_COLUMN_MC) << m_cacheExist->getNbNegativeHit()
+    out << "c " << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << m_nbCallCall
+        << std::fixed << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << m_nbCallProj
+        << std::fixed << std::setprecision(2) << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << getTimer() << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << m_cacheExist->getNbPositiveHit()
         << "|" << std::setw(WIDTH_PRINT_COLUMN_MC)
-        << m_cacheRandom->getNbPositiveHit() << "|"
-        << std::setw(WIDTH_PRINT_COLUMN_MC) << m_cacheRandom->getNbNegativeHit()
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << m_nbSplitExist << "|"
+        << m_cacheExist->getNbNegativeHit() << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << m_cacheRandom->getNbPositiveHit()
+        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC)
+        << m_cacheRandom->getNbNegativeHit() << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << m_nbSplitExist << "|"
         << std::setw(WIDTH_PRINT_COLUMN_MC) << m_nbSplitRandom << "|"
         << std::setw(WIDTH_PRINT_COLUMN_MC) << m_nbCutUpperBoundExist << "|"
         << std::setw(WIDTH_PRINT_COLUMN_MC) << m_nbCutUpperBoundRandom << "|"
@@ -328,25 +329,23 @@ class ExistRandomExist : public MethodManager {
   */
   inline void showHeader(std::ostream &out) {
     separator(out);
-    out << "c "
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "#call(m)"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "#call(i)"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "time"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "#posHit(m)"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "#negHit(m)"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "#posHit(i)"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "#negHit(i)"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "#split(m)"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "#split(i)"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "#cutUb(m)"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "#cutUb(i)"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "#pure(m)"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "#pure(i)"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "memory"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "mem(MB)"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "#dec. Node"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "max#count"
-        << "|\n";
+    out << "c " << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "#call(m)" << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << "#call(i)" << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << "time" << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << "#posHit(m)" << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << "#negHit(m)" << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << "#posHit(i)" << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << "#negHit(i)" << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << "#split(m)" << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << "#split(i)" << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << "#cutUb(m)" << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << "#cutUb(i)" << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << "#pure(m)" << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << "#pure(i)" << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << "memory" << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << "mem(MB)" << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << "#dec. Node" << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << "max#count" << "|\n";
     separator(out);
   }  // showHeader
 
@@ -535,33 +534,6 @@ class ExistRandomExist : public MethodManager {
   }  // selectPhase
 
   /**
-   * @brief Dig for pure literals we can assign.
-   *
-   * @param setOfVar, the current set of considered variables
-   * @param[out] unitsLit is the place where the new literals assigned will be
-   * pushed.
-   */
-  void assignPureLiteral(std::vector<Var> &setOfVar, std::vector<Lit> &unitsLit,
-                         unsigned &countPure) {
-    std::vector<Lit> pureLit;
-    for (auto &v : setOfVar) {
-      if (m_isProjectedVariable[v]) continue;
-      if (m_specs->varIsAssigned(v)) continue;
-
-      Lit l = Lit::makeLitTrue(v);
-      if (!m_specs->getNbOccurrence(l) && m_specs->getNbOccurrence(~l))
-        pureLit.push_back(~l);
-      if (!m_specs->getNbOccurrence(~l) && m_specs->getNbOccurrence(l))
-        pureLit.push_back(l);
-    }
-    if (pureLit.size()) {
-      for (auto &l : pureLit) unitsLit.push_back(l);
-      m_specs->preUpdate(pureLit);
-      countPure += pureLit.size();
-    }
-  }  // assignPureLiteral
-
-  /**
    * @brief Search for a valuation of the max variables that maximizes the
    * number of models on the remaning formula where some variables are
    * forget.
@@ -590,7 +562,6 @@ class ExistRandomExist : public MethodManager {
 
     m_solver->whichAreUnits(setOfVar, unitsLit);  // collect unit literals
     m_specs->preUpdate(unitsLit);
-    assignPureLiteral(setOfVar, unitsLit, m_nbPureExist);
 
     // compute the connected composant
     std::vector<std::vector<Var>> varConnected;
@@ -618,8 +589,6 @@ class ExistRandomExist : public MethodManager {
         m_scale.valuation[m_redirectionPos[l.var()]] = 1 - l.sign();
         result.valuation[m_redirectionPos[l.var()]] = 1 - l.sign();
       } else if (m_isDecisionVariable[l.var()]) {
-        std::cout << "Propagate one literal from the ind " << l.human() << "\n";
-        exit(0);
         fixInd *= T(m_problem->getWeightLit(l));
       }
 
@@ -831,7 +800,6 @@ class ExistRandomExist : public MethodManager {
 #if TEST
     std::cout << "fixInd = " << fixInd << " -> " << targetMin << "\n";
 #endif
-    assignPureLiteral(setOfVar, unitsLit, m_nbPureRandom);
 
     // compute the connected composant
     std::vector<std::vector<Var>> varConnected;

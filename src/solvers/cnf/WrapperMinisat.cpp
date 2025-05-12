@@ -28,6 +28,7 @@
 #include "minisat/mtl/Vec.hpp"
 #include "src/problem/CnfMatrix.hpp"
 #include "src/problem/ProblemManager.hpp"
+#include "src/utils/ErrorCode.hpp"
 
 namespace d4 {
 using minisat::toInt;
@@ -56,7 +57,7 @@ void WrapperMinisat::initSolver(ProblemManager &p) {
   } catch (std::bad_cast &bc) {
     std::cerr << "c bad_cast caught: " << bc.what() << '\n';
     std::cerr << "c A CNF formula was expeted\n";
-    assert(0);
+    exit(ERROR_BAD_CAST);
   }
 
   m_activeModel = false;
@@ -137,6 +138,8 @@ void WrapperMinisat::setReversePolarity(bool value) {
  * \return the number of times v occurs in a conflict.
  */
 double WrapperMinisat::getCountConflict(Var v) {
+  assert(v >= 0);
+  assert(v < s.scoreActivity.size());
   return s.scoreActivity[v];
 }  // getCountConflict
 
@@ -212,6 +215,26 @@ bool WrapperMinisat::decideAndComputeUnit(Lit l, std::vector<Lit> &units) {
   s.cancelUntil(s.decisionLevel() - 1);
   return true;
 }  // decideAndComputeUnit
+
+/**
+ * @brief WrapperMinisat::literalProbing implementation.
+ */
+bool WrapperMinisat::failedLiteralProbing(Lit l) {
+  if (!s.okay()) return true;
+  minisat::Lit ml = minisat::mkLit(l.var(), (~l).sign());
+  if (varIsAssigned(l.var())) {
+    if (s.litAssigned(l.var()) == ml) return true;
+    return false;
+  }
+
+  s.newDecisionLevel();
+  s.uncheckedEnqueue(ml);
+  minisat::CRef confl = s.propagate();
+  s.cancelUntil(s.decisionLevel() - 1);
+
+  if (confl != minisat::CRef_Undef) return true;  // unit literal
+  return false;
+}  // failedLiteralProbing
 
 /**
    Fill the vector units with the literal l that are units such that l.var() is

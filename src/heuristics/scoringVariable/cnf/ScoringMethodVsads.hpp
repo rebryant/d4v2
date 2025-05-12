@@ -17,19 +17,19 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
  */
 #pragma once
+#include <src/formulaManager/cnf/CnfManager.hpp>
 #include <src/solvers/ActivityManager.hpp>
-#include <src/specs/cnf/SpecManagerCnf.hpp>
 
 #include "../ScoringMethod.hpp"
 
 namespace d4 {
 class ScoringMethodVsads : public ScoringMethod {
  private:
-  SpecManagerCnf &om;
+  CnfManager &om;
   ActivityManager &activity;
 
  public:
-  ScoringMethodVsads(SpecManagerCnf &o, ActivityManager &a);
+  ScoringMethodVsads(CnfManager &o, ActivityManager &a);
   double computeScore(Var v);
 
   inline void decayCountConflict() { activity.decayCountConflict(); }

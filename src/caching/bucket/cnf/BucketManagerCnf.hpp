@@ -25,8 +25,8 @@
 #include "../../CachedBucket.hpp"
 #include "../BucketAllocator.hpp"
 #include "../BucketManager.hpp"
+#include "src/formulaManager/cnf/CnfManager.hpp"
 #include "src/problem/ProblemTypes.hpp"
-#include "src/specs/cnf/SpecManagerCnf.hpp"
 
 namespace d4 {
 template <class T>
@@ -37,7 +37,7 @@ class CacheManager;
 template <class T>
 class BucketManagerCnf : public BucketManager<T> {
  protected:
-  SpecManagerCnf &m_specManager;
+  CnfManager &m_specManager;
 
   ModeStore m_modeStore;
   unsigned m_nbClauseCnf;
@@ -83,8 +83,8 @@ class BucketManagerCnf : public BucketManager<T> {
      pages.
      @param[in] bucketAllocator, a bucket allocator.
   */
-  BucketManagerCnf(SpecManagerCnf &occM, CacheManager<T> *cache,
-                   ModeStore mdStore, unsigned long sizeFirstPage,
+  BucketManagerCnf(CnfManager &occM, CacheManager<T> *cache, ModeStore mdStore,
+                   unsigned long sizeFirstPage,
                    unsigned long sizeAdditionalPage,
                    BucketAllocator *bucketAllocator)
       : m_specManager(occM) {
@@ -123,12 +123,12 @@ class BucketManagerCnf : public BucketManager<T> {
   }  // isKeptClause
 
   /**
-     Get the clauses that will be used, that are the clause that respect the
-     modeStore.
-
-     @param[in] component, the variables in the current component.
-     @param[out] idxClauses, the resulting clauses (index).
-  */
+   * @brief Get the clauses that will be used, that are the clause that respect
+   * the modeStore.
+   *
+   * @param[in] component, the variables in the current component.
+   * @param[out] idxClauses, the resulting clauses (index).
+   */
   void collectIdActiveClauses(std::vector<Var> &component,
                               std::vector<unsigned> &idxClauses) {
     // collect the clauses

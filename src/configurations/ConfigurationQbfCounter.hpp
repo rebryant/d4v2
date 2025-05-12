@@ -21,9 +21,9 @@
 #include "Configuration.hpp"
 #include "ConfigurationBranchingHeuristic.hpp"
 #include "ConfigurationCache.hpp"
-#include "ConfigurationPartitioningHeuristic.hpp"
+#include "ConfigurationFormulaManager.hpp"
+#include "ConfigurationPartialOrderHeuristic.hpp"
 #include "ConfigurationSolver.hpp"
-#include "ConfigurationSpec.hpp"
 #include "src/options/methods/OptionOperationManager.hpp"
 
 namespace d4 {
@@ -33,6 +33,6 @@ class ConfigurationQbfCounter : public Configuration {
   ConfigurationSolver solver;
   ConfigurationSpec spec;
   ConfigurationBranchingHeuristic branchingHeuristic;
-  ConfigurationPartitioningHeuristic partitioningHeuristic;
+  ConfigurationPartialOrderHeuristic partitioningHeuristic;
 };
 }  // namespace d4

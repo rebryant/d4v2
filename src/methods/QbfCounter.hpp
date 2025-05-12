@@ -30,8 +30,9 @@
 #include "src/caching/CacheManager.hpp"
 #include "src/caching/CachedBucket.hpp"
 #include "src/caching/TmpEntry.hpp"
+#include "src/formulaManager/FormulaManager.hpp"
 #include "src/heuristics/BranchingHeuristic.hpp"
-#include "src/heuristics/partitioning/PartitioningHeuristic.hpp"
+#include "src/heuristics/partialOrder/PartialOrderHeuristic.hpp"
 #include "src/options/cache/OptionCacheManager.hpp"
 #include "src/options/methods/OptionQbfCounter.hpp"
 #include "src/options/solvers/OptionSolver.hpp"
@@ -40,7 +41,6 @@
 #include "src/problem/ProblemTypes.hpp"
 #include "src/problem/qbf/ProblemManagerQbf.hpp"
 #include "src/solvers/WrapperSolver.hpp"
-#include "src/specs/SpecManager.hpp"
 #include "src/utils/MemoryStat.hpp"
 
 #define NB_SEP_QBF_MC 92
@@ -76,7 +76,7 @@ class QbfCounter : public MethodManager {
 
   ProblemManagerQbf *m_problem;
   WrapperSolver *m_solver;
-  SpecManager *m_specs;
+  FormulaManager *m_specs;
 
   BranchingHeuristic *m_heuristic;
   TmpEntry<mpz::mpz_int> NULL_CACHE_ENTRY;
@@ -109,13 +109,14 @@ class QbfCounter : public MethodManager {
     m_out << "c [QBF COUNTER]" << options << "\n";
 
     // we create and init the SAT solver.
-    m_solver = WrapperSolver::makeWrapperSolver(options.optionSolver, m_out);
+    m_solver = WrapperSolver::makeWrapperSolver(options.optionSolver,
+                                                *m_problem, m_out);
     m_solver->initSolver(*m_problem);
     m_solver->setNeedModel(true);
 
     // we initialize the object that will give info about the problem.
-    m_specs = SpecManager::makeSpecManager(options.optionSpecManager,
-                                           *m_problem, m_out);
+    m_specs = FormulaManager::makeFormulaManager(options.optionSpecManager,
+                                                 *m_problem, m_out);
 
     // we initialize the object used to compute score and partition.
     m_heuristic = BranchingHeuristic::makeBranchingHeuristic(
@@ -204,15 +205,13 @@ class QbfCounter : public MethodManager {
   */
   inline void showHeader(std::ostream &out) {
     separator(out);
-    out << "c "
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "time"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "#posHit"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "#negHit"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "memory"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "#split"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "mem(MB)"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "#dec. Node"
-        << "|\n";
+    out << "c " << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "time" << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << "#posHit" << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << "#negHit" << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << "memory" << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << "#split" << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << "mem(MB)" << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << "#dec. Node" << "|\n";
     separator(out);
   }  // showHeader
 

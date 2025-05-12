@@ -25,7 +25,7 @@
 
 namespace d4 {
 class WrapperMinisat : public WrapperSolver {
- private:
+ protected:
   minisat::Solver s;
   minisat::vec<minisat::Var> m_setOfVar_m;
 
@@ -34,7 +34,6 @@ class WrapperMinisat : public WrapperSolver {
   bool m_activeModel;
   bool m_needModel;
 
- protected:
   using WrapperSolver::m_isInAssumption;
 
  public:
@@ -45,6 +44,7 @@ class WrapperMinisat : public WrapperSolver {
   bool varIsAssigned(Var v) override;
   bool getPolarity(Var v) override;
   bool decideAndComputeUnit(Lit l, std::vector<Lit> &units) override;
+  bool failedLiteralProbing(Lit l) override;
   void whichAreUnits(std::vector<Var> &component,
                      std::vector<Lit> &units) override;
   void restart() override;

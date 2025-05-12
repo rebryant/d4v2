@@ -24,8 +24,38 @@
 #include "cnf/ScoringMethodVsads.hpp"
 #include "cnf/ScoringMethodVsids.hpp"
 #include "src/exceptions/FactoryException.hpp"
+#include "src/formulaManager/circuit/CircuitWithCnfManager.hpp"
+#include "src/utils/ErrorCode.hpp"
 
 namespace d4 {
+
+/**
+ * @brief Given a scoring method option and a CnfManager, this function returns
+ * the appropiate scoring method.
+ *
+ * @param[in] ps is a CnfManager.
+ * @param[in] am is an ActivityManager.
+ * @param[in] sm is the scoring method we want.
+ *
+ * @return a scoring method.
+ */
+ScoringMethod *getScoringMethodCnf(CnfManager &ps, ActivityManager &am,
+                                   const ScoringMethodType &sm) {
+  switch (sm) {
+    case SCORE_MOM:
+      return new ScoringMethodMom(ps);
+    case SCORE_DLCS:
+      return new ScoringMethodDlcs(ps);
+    case SCORE_VSIDS:
+      return new ScoringMethodVsids(am);
+    case SCORE_VSADS:
+      return new ScoringMethodVsads(ps, am);
+    case SCORE_JWTS:
+      return new ScoringMethodJwts(ps);
+  }
+
+  return NULL;
+}  // getScoringMethodCnf
 
 /**
    Select from the arguments store in vm the good scoring method and return it.
@@ -36,33 +66,42 @@ namespace d4 {
    \return the scoring method
  */
 ScoringMethod *ScoringMethod::makeScoringMethod(
-    const OptionBranchingHeuristic &options, SpecManager &p,
+    const OptionBranchingHeuristic &options, FormulaManager &p,
     ActivityManager &am, std::ostream &out) {
-  try {
-    SpecManagerCnf &ps = dynamic_cast<SpecManagerCnf &>(p);
-
-    if (options.scoringMethodType == SCORE_MOM) return new ScoringMethodMom(ps);
-    if (options.scoringMethodType == SCORE_DLCS)
-      return new ScoringMethodDlcs(ps);
-    if (options.scoringMethodType == SCORE_VSIDS)
-      return new ScoringMethodVsids(am);
-    if (options.scoringMethodType == SCORE_VSADS)
-      return new ScoringMethodVsads(ps, am);
-    if (options.scoringMethodType == SCORE_JWTS)
-      return new ScoringMethodJwts(ps);
-  } catch (std::bad_cast &bc) {
-    std::cerr << "c bad_cast caught: " << bc.what() << '\n';
-    std::cerr << "c A CNF formula was expeted\n";
-    assert(0);
+  switch (p.getProblemInputType()) {
+    case PB_CIRC:
+      try {
+        CircuitWithCnfManager &ps = dynamic_cast<CircuitWithCnfManager &>(p);
+        return getScoringMethodCnf(*(ps.getCnfManager()), am,
+                                   options.scoringMethodType);
+      } catch (std::bad_cast &bc) {
+        std::cerr << "c bad_cast caught: " << bc.what() << '\n';
+        std::cerr << "c A CNF formula was expeted\n";
+        exit(ERROR_BAD_CAST);
+      }
+    case PB_QBF:
+    case PB_TCNF:
+    case PB_CNF:
+      try {
+        CnfManager &ps = dynamic_cast<CnfManager &>(p);
+        return getScoringMethodCnf(ps, am, options.scoringMethodType);
+      } catch (std::bad_cast &bc) {
+        std::cerr << "c bad_cast caught: " << bc.what() << '\n';
+        std::cerr << "c A CNF formula was expeted\n";
+        exit(ERROR_BAD_CAST);
+      }
+    case PB_NONE:
+      std::cerr << "c The problem type cannot be none!\n";
+      exit(ERROR_BAD_TYPE_PROBLEM);
   }
 
   throw(FactoryException("Cannot create a ScoringMethod", __FILE__, __LINE__));
 }  // makeScoringMethod
 
 /**
- * @brief ScoringMethod::selectLitSet implementation.
+ * @brief ScoringMethod::selectVariable implementation.
  */
-Var ScoringMethod::selectVariable(std::vector<Var> &vars, SpecManager &s,
+Var ScoringMethod::selectVariable(std::vector<Var> &vars, FormulaManager &s,
                                   std::vector<bool> &isDecisionVariable) {
   Var ret = var_Undef;
   double bestScore = -1;
@@ -79,6 +118,6 @@ Var ScoringMethod::selectVariable(std::vector<Var> &vars, SpecManager &s,
   }
 
   return ret;
-}  // selectLitSet
+}  // selectVariable
 
 }  // namespace d4

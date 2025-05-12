@@ -24,7 +24,7 @@
 #include "src/configurations/ConfigurationDpllStyleMethod.hpp"
 #include "src/exceptions/FactoryException.hpp"
 #include "src/options/branchingHeuristic/OptionBranchingHeuristic.hpp"
-#include "src/options/branchingHeuristic/OptionPartitioningHeuristic.hpp"
+#include "src/options/branchingHeuristic/OptionPartialOrderHeuristic.hpp"
 #include "src/options/cache/OptionCacheManager.hpp"
 
 namespace d4 {
@@ -35,7 +35,8 @@ class OptionDpllStyleMethod {
   OptionSolver optionSolver;
   OptionSpecManager optionSpecManager;
   OptionBranchingHeuristic optionBranchingHeuristic;
-  OptionPartitioningHeuristic optionPartitioningHeuristic;
+  OptionPartialOrderHeuristic optionPartialOrderHeuristic;
+  bool exploitModel;
 
   /**
    * @brief Construct a new object with the default parameter.
@@ -52,7 +53,8 @@ class OptionDpllStyleMethod {
 
   friend std::ostream& operator<<(std::ostream& out,
                                   const OptionDpllStyleMethod& dt) {
-    out << " Option DPLL-style Method";
+    out << " Option DPLL-style Method: exploit-model(" << dt.exploitModel
+        << ") ";
     return out;
   }  // <<
 };

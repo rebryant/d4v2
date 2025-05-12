@@ -35,6 +35,9 @@ ProblemManagerCnf::ProblemManagerCnf(const std::string &nameFile) {
   m_weightVar.resize(m_nbVar + 1, 0);
   for (unsigned i = 0; i <= m_nbVar; i++)
     m_weightVar[i] = m_weightLit[i << 1] + m_weightLit[(i << 1) + 1];
+
+  m_order.resize(m_nbVar + 1);
+  for (unsigned i = 0; i < m_order.size(); i++) m_order[i] = i;
 }  // constructor
 
 /**
@@ -49,6 +52,9 @@ ProblemManagerCnf::ProblemManagerCnf(const int fd, bool keepOpen) {
   m_weightVar.resize(m_nbVar + 1, 0);
   for (unsigned i = 0; i <= m_nbVar; i++)
     m_weightVar[i] = m_weightLit[i << 1] + m_weightLit[(i << 1) + 1];
+
+  m_order.resize(m_nbVar + 1);
+  for (unsigned i = 0; i < m_order.size(); i++) m_order[i] = i;
 }  // constructor
 
 /**
@@ -69,6 +75,7 @@ ProblemManagerCnf::ProblemManagerCnf(ProblemManager *problem) {
   m_selected = problem->getSelectedVar();
   m_maxVar = problem->getMaxVar();
   m_indVar = problem->getIndVar();
+  m_order = problem->getOrder();
   m_isUnsat = false;
 }  // constructor
 
@@ -209,20 +216,18 @@ void ProblemManagerCnf::display(std::ostream &out) {
 }  // diplay
 
 /**
-   Print out some statistic about the problem. Each line will start with the
-   string startLine given in parameter.
-
-   @param[in] out, the stream where the messages are redirected.
-   @param[in] startLine, each line will start with this string.
+ * @brief
  */
 void ProblemManagerCnf::displayStat(std::ostream &out, std::string startLine) {
   unsigned nbLits = 0;
   unsigned nbBin = 0;
   unsigned nbTer = 0;
+  unsigned nbUnit = 0;
   unsigned nbMoreThree = 0;
 
   for (auto &c : m_clauses) {
     nbLits += c.size();
+    if (c.size() == 1) nbUnit++;
     if (c.size() == 2) nbBin++;
     if (c.size() == 3) nbTer++;
     if (c.size() > 3) nbMoreThree++;
@@ -230,11 +235,21 @@ void ProblemManagerCnf::displayStat(std::ostream &out, std::string startLine) {
 
   out << startLine << "Number of variables: " << m_nbVar << "\n";
   out << startLine << "Number of clauses: " << m_clauses.size() << "\n";
+  out << startLine << "Number of unit clauses: " << nbUnit << "\n";
   out << startLine << "Number of binary clauses: " << nbBin << "\n";
   out << startLine << "Number of ternary clauses: " << nbTer << "\n";
   out << startLine << "Number of clauses larger than 3: " << nbMoreThree
       << "\n";
   out << startLine << "Number of literals: " << nbLits << "\n";
 }  // displaystat
+
+/**
+ * @brief ProblemManagerCnf::translate implementation.
+ */
+inline ProblemManager *ProblemManagerCnf::translate(
+    const ProblemTranslateType &t) {
+  assert(t == TRANSLATE_NONE);
+  return this;
+}  // translate
 
 }  // namespace d4

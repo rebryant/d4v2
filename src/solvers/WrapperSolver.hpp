@@ -36,11 +36,13 @@ class WrapperSolver : public ActivityManager, public PolarityManager {
    * compilation/counting problems.
    *
    * @param name is the solver name.
+   * @param p is the problem under consideration (CNF, QBF, ...).
    * @param out is the stream where is printed out the logs.
-   * @return a solver.
+   *
+   * \return a solver.
    */
   static WrapperSolver *makeWrapperSolver(const OptionSolver &name,
-                                          std::ostream &out);
+                                          ProblemManager &p, std::ostream &out);
 
   virtual ~WrapperSolver() {}
   virtual void initSolver(ProblemManager &p) = 0;
@@ -66,6 +68,7 @@ class WrapperSolver : public ActivityManager, public PolarityManager {
 
   // this function returns false if the propagation gives a conflict.
   virtual bool decideAndComputeUnit(Lit l, std::vector<Lit> &units) = 0;
+  virtual bool failedLiteralProbing(Lit l) = 0;
 
   virtual void whichAreUnits(std::vector<Var> &component,
                              std::vector<Lit> &units) = 0;

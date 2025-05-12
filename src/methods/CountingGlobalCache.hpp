@@ -28,6 +28,7 @@
 #include "src/caching/CacheManager.hpp"
 #include "src/caching/CachedBucket.hpp"
 #include "src/caching/TmpEntry.hpp"
+#include "src/formulaManager/FormulaManager.hpp"
 #include "src/heuristics/partitioning/PartitioningHeuristic.hpp"
 #include "src/heuristics/phaseSelection/PhaseHeuristic.hpp"
 #include "src/heuristics/scoringVariable/ScoringMethod.hpp"
@@ -38,7 +39,6 @@
 #include "src/problem/ProblemManager.hpp"
 #include "src/problem/ProblemTypes.hpp"
 #include "src/solvers/WrapperSolver.hpp"
-#include "src/specs/SpecManager.hpp"
 #include "src/utils/MemoryStat.hpp"
 
 #define NB_SEP_MC 104
@@ -204,10 +204,10 @@ class CountingGlobalCache : public MethodManager, public Counter<mpz::mpz_int> {
 
   ProblemManager *m_problem;
   WrapperSolver *m_solver;
-  SpecManager *m_specs;
+  FormulaManager *m_specs;
   ScoringMethod *m_hVar;
   PhaseHeuristic *m_hPhase;
-  PartitioningHeuristic *m_hCutSet;
+  PartialOrderHeuristic *m_hCutSet;
   TmpEntry<mpz::mpz_int> NULL_CACHE_ENTRY;
   CacheManager<mpz::mpz_int> *m_cache;
 
@@ -240,8 +240,8 @@ class CountingGlobalCache : public MethodManager, public Counter<mpz::mpz_int> {
     m_solver->setNeedModel(true);
 
     // we initialize the object that will give info about the problem.
-    m_specs = SpecManager::makeSpecManager(options.optionSpecManager,
-                                           *m_problem, m_out);
+    m_specs = FormulaManager::makeFormulaManager(options.optionSpecManager,
+                                                 *m_problem, m_out);
 
     // we initialize the object used to compute score and partition.
     m_hVar = ScoringMethod::makeScoringMethod(options.optionBranchingHeuristic,
@@ -259,11 +259,11 @@ class CountingGlobalCache : public MethodManager, public Counter<mpz::mpz_int> {
     // select the partitioner regarding if it projected model counting or not.
     if ((m_isProjectedMode = m_problem->getNbSelectedVar())) {
       m_out << "c [MODE] projected\n";
-      m_hCutSet = PartitioningHeuristic::makePartitioningHeuristicNone(m_out);
+      m_hCutSet = PartialOrderHeuristic::makePartitioningHeuristicNone(m_out);
     } else {
       m_out << "c [MODE] classic\n";
-      m_hCutSet = PartitioningHeuristic::makePartitioningHeuristic(
-          options.optionPartitioningHeuristic, *m_specs, *m_solver, m_out);
+      m_hCutSet = PartialOrderHeuristic::makePartialOrderingHeuristic(
+          options.optionPartialOrderHeuristic, *m_specs, *m_solver, m_out);
     }
 
     assert(m_hVar && m_hPhase && m_hCutSet);
@@ -390,16 +390,14 @@ class CountingGlobalCache : public MethodManager, public Counter<mpz::mpz_int> {
   */
   inline void showHeader(std::ostream &out) {
     separator(out);
-    out << "c "
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "time"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "#posHit"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "#negHit"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "memory"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "#split"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "mem(MB)"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "#dec. Node"
-        << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "#cutter"
-        << "|\n";
+    out << "c " << "|" << std::setw(WIDTH_PRINT_COLUMN_MC) << "time" << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << "#posHit" << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << "#negHit" << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << "memory" << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << "#split" << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << "mem(MB)" << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << "#dec. Node" << "|"
+        << std::setw(WIDTH_PRINT_COLUMN_MC) << "#cutter" << "|\n";
     separator(out);
   }  // showHeader
 

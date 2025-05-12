@@ -113,13 +113,12 @@ void compilerDemo(const po::variables_map &vm, ProblemManager *problem) {
 
   config.cache = parseCacheConfiguration(vm);
   config.branchingHeuristic = parseBranchingHeuristicConfiguration(vm);
-  config.partitioningHeuristic = parsePartitioningHeuristicConfiguration(vm);
-
   config.solver.solverName =
       d4::SolverNameManager::getSolverName(vm["solver"].as<std::string>());
 
   config.spec.specUpdateType = d4::SpecUpdateManager::getSpecUpdate(
       vm["occurrence-manager"].as<std::string>());
+  config.spec.removeGates = vm["remove-gates"].as<bool>();
 
   config.operationType =
       d4::OperationTypeManager::getOperatorType("ddnnf-compiler");

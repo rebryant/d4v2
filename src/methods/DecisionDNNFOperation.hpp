@@ -24,8 +24,8 @@
 #include "DataBranch.hpp"
 #include "QueryManager.hpp"
 #include "nnf/NodeManager.hpp"
+#include "src/formulaManager/FormulaManager.hpp"
 #include "src/solvers/WrapperSolver.hpp"
-#include "src/specs/SpecManager.hpp"
 
 namespace d4 {
 template <class T, class U>
@@ -46,7 +46,7 @@ class DecisionDNNFOperation : public Operation<T, U> {
      @param[in] problem, allows to get information about the problem such as
      weights.
    */
-  DecisionDNNFOperation(ProblemManager *problem, SpecManager *specs,
+  DecisionDNNFOperation(ProblemManager *problem, FormulaManager *specs,
                         WrapperSolver *solver)
       : m_problem(problem), m_solver(solver) {
     m_nodeManager = NodeManager<T>::makeNodeManager(specs->getNbVariable() + 1);
