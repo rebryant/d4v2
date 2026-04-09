@@ -76,7 +76,8 @@ void WrapperGlucose::initSolver(ProblemManager &p) {
    \return true if the problem is SAT, false otherwise.
  */
 bool WrapperGlucose::solve(std::vector<Var> &setOfVar) {
-  if (m_activeModel && m_needModel) return true;
+  // REB.  Disable quick exit
+  //  if (m_activeModel && m_needModel) return true;
 
   m_setOfVar_m.setSize(0);
   for (auto &v : setOfVar) m_setOfVar_m.push(v);
