@@ -126,6 +126,10 @@ void compilerDemo(const po::variables_map &vm, ProblemManager *problem) {
   bool isFloat = problem->isFloat();
   MethodManager::displayInfoVariables(problem, std::cout);
 
+  // REB Add option
+  config.skolemize = vm["skolemize"].as<bool>();
+
+
   // init the options.
   OptionDpllStyleMethod options(config);
 
