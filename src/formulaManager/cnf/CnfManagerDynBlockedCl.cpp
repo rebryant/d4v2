@@ -106,7 +106,10 @@ CnfManagerDynBlockedCl::CnfManagerDynBlockedCl(ProblemManager &p)
   removeSatisfiedClauses(m_indexSatClauses);
 
   // call the simplification to progate.
-  inprocessing();
+  // REB.  Need better argument
+  std::vector<Lit> lits;
+  inprocessing(lits);
+  //  inprocessing();
   std::cout << "c [SPEC MANAGER] Number of clauses removed at the beginning: "
             << m_nbBlockedClauseRemoved << '\n';
 
@@ -189,7 +192,11 @@ void CnfManagerDynBlockedCl::getBlockedClauses(
  * m_indexSatClauses contains the clause we have to propagate at the current
  * level.
  */
-void CnfManagerDynBlockedCl::inprocessing() {
+// void CnfManagerDynBlockedCl::inprocessing() {
+// REB: Maintain compatiblity
+void CnfManagerDynBlockedCl::inprocessing(std::vector<Lit> &lits) {
+
+  //void CnfManagerDynBlockedCl::inprocessing() {
   // get the blocked clauses.
   m_idxBlockedClauses.resize(0);
   while (m_indexSatClauses.size()) {

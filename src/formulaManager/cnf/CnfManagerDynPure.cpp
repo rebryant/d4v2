@@ -70,7 +70,7 @@ void CnfManagerDynPure::getPureLiterals(std::vector<Lit> &pureLits) {
 /**
  * @brief CnfManagerDynPure::inprocessing implementation.
  */
-void CnfManagerDynPure::inprocessing() {
+void CnfManagerDynPure::inprocessing(std::vector<Lit> &lits) {
   // consider the pure literals.
   do {
     m_pureDetected.resize(0);
@@ -82,6 +82,11 @@ void CnfManagerDynPure::inprocessing() {
       if (!m_occurrence[l.intern()].size() &&
           m_occurrence[(~l).intern()].size()) {
         m_pureDetected.push_back(~l);
+	// REB: Record literal assignment
+	lits.push_back(~l);
+	// REB: Not sure if this is needed
+	m_currentValue[l.var()] = (~l).sign();
+
       }
     }
 

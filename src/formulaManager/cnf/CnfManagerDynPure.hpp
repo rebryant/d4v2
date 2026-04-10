@@ -57,7 +57,9 @@ class CnfManagerDynPure : public CnfManagerDyn {
    *
    * @return true if some pure literals have been decteted, false otherwise.
    */
-  void inprocessing() override;
+  //  void inprocessing() override;
+  // REB: Pure literals added to lits
+  void inprocessing(std::vector<Lit> &lits) override;
 
  public:
   CnfManagerDynPure(ProblemManager &p);

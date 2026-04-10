@@ -131,6 +131,32 @@ class DecisionDNNFOperation : public Operation<T, U> {
     return b.d;
   }  // manageTop
 
+  // REB: Added to support Skolem assignment generation                                                                                                 
+  /**                                                                                                                                                   
+     Manage the case where we want to generate a solution                                                                                               
+                                                                                                                                                        
+     @param[in] component, the current set of variables (useless here).                                                                                 
+                                                                                                                                                        
+     \return 0 as number of models.                                                                                                                     
+   */
+  U manageSolution(std::vector<Var> &component) {
+    DataBranch<U> b;
+    // collect unit literals                                                                           
+    m_solver->whichAreUnits(component, b.unitLits);
+    m_solver->solve(component);
+    for (auto &var : component) {
+      lbool value = m_solver->getModelVar(var);
+      if (value == l_True) {
+        b.unitLits.push_back(Lit::makeLitTrue(var));
+      } else if (value == l_False) {
+        b.unitLits.push_back(Lit::makeLitFalse(var));
+      }
+    }
+    b.d = m_nodeManager->makeTrueNode();
+    if (b.unitLits.size()) return m_nodeManager->makeUnaryNode(b);
+    return b.d;
+  }  // manageSolution                                                                                                                                  
+
   /**
      Manage the case where we only have a branch in our OR gate.
 

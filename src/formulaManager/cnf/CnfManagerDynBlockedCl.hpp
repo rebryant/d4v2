@@ -68,7 +68,10 @@ class CnfManagerDynBlockedCl : public CnfManagerDyn {
    * @brief Remove the blocked clauses that are supported by non selected
    * variable.
    */
-  void inprocessing();
+  //  void inprocessing();
+  // REB: Compatibility
+  void inprocessing(std::vector<Lit> &lits);
+
 
  public:
   CnfManagerDynBlockedCl(ProblemManager &p);

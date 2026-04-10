@@ -64,6 +64,8 @@ class Operation {
   virtual U createBottom() = 0;
   virtual U manageBottom() = 0;
   virtual U manageTop(std::vector<Var> &component) = 0;
+  // REB: Allow adding Skolem solution
+  virtual U manageSolution(std::vector<Var> &component) = 0;
   virtual U manageBranch(DataBranch<U> &e) = 0;
   virtual U manageDeterministOr(DataBranch<U> *elts, unsigned size) = 0;
   virtual U manageDecomposableAnd(U *elts, unsigned size) = 0;

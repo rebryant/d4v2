@@ -188,7 +188,7 @@ class FormulaManager {
    *
    * @param[in] lits is the set of literal under consideration.
    */
-  virtual void preUpdate(const std::vector<Lit> &lits) = 0;
+  virtual void preUpdate(std::vector<Lit> &lits) = 0;
 
   /**
    * @brief This function is called to undo the modification done by the

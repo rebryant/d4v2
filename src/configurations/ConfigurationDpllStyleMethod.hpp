@@ -36,5 +36,9 @@ class ConfigurationDpllStyleMethod : public Configuration {
   ConfigurationSpec spec;
   ConfigurationBranchingHeuristic branchingHeuristic;
   bool exploitModel = true;
+
+  // REB
+  bool skolemize = false;
+
 };
 }  // namespace d4

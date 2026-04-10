@@ -118,6 +118,9 @@ class CountingOperation : public Operation<T, T> {
    */
   inline T manageTop(std::vector<Var> &component) { return top; }
 
+  // REB:  Added to enable compilation.  Will never call this.                                                                                          
+  inline T manageSolution(std::vector<Var> &component) { return top; }
+
   /**
      Return true, that is given by the value 1.
 

@@ -291,7 +291,9 @@ void CircuitWithCnfManager::debugFunction() {
 /**
  * @brief CircuitWithCnfManager::preUpdate implementation.
  */
-void CircuitWithCnfManager::preUpdate(const std::vector<Lit> &lits) {
+// REB: Compatibility
+// void CircuitWithCnfManager::preUpdate(const std::vector<Lit> &lits) {
+void CircuitWithCnfManager::preUpdate(std::vector<Lit> &lits) {
   m_stackGatesNotAliveSize.push_back(m_stackGatesNotAlive.size());
   m_cnfManager->pushStacks();
   assignListLit(lits);

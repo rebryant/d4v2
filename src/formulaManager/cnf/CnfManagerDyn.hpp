@@ -74,7 +74,9 @@ class CnfManagerDyn : public CnfManager {
   /**
    * @brief Call an inprocessing method for simplifying the formula.
    */
-  virtual void inprocessing() {}
+  //  virtual void inprocessing() {}
+  // REB: Pure literals added to lits
+  virtual void inprocessing(std::vector<Lit> &lits) {}
 
  public:
   /**
@@ -159,7 +161,8 @@ class CnfManagerDyn : public CnfManager {
    *
    * @param[in] lits is the set of literals they are assigned to true.
    */
-  void preUpdate(const std::vector<Lit> &lits) override;
+  // REB Modify declaration
+  void preUpdate(std::vector<Lit> &lits) override;
 
   /**
    * @brief We want to come to the situation before the mirror preUpdate.

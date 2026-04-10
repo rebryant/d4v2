@@ -68,6 +68,8 @@ class DpllStyleMethod : public MethodManager, public Counter<T> {
   unsigned m_stampIdx;
   unsigned m_freqDecay;
   bool m_isProjectedMode;
+  // REB: When set true, retain literals of projection variables and generate solutions when encounter tautology                                        
+  bool m_skolemize;
 
   bool m_connectedComponent;
   unsigned m_lastNbSplit;
@@ -139,6 +141,13 @@ class DpllStyleMethod : public MethodManager, public Counter<T> {
     initTimer();
 
     m_optCached = options.optionCacheManager.isActivated;
+
+    // REB: Skolemize option                                                                                                                            
+    m_skolemize = options.skolemize;
+    if (m_skolemize)
+      m_solver->setNeedModel(true);
+
+
     m_callPartitioner = 0;
     m_nbDecisionNode = m_nbSplit = m_nbCallCall = 0;
     m_stampIdx = 0;
@@ -192,6 +201,8 @@ class DpllStyleMethod : public MethodManager, public Counter<T> {
   void expelNoDecisionLit(std::vector<Lit> &lits,
                           std::vector<bool> &isDecisionVariable) {
     if (!m_isProjectedMode) return;
+    // REB: Keep all literals for Skolemization                                                                                                   
+    if (m_skolemize) return;
 
     unsigned j = 0;
     for (unsigned i = 0; i < lits.size(); i++)
@@ -370,6 +381,7 @@ class DpllStyleMethod : public MethodManager, public Counter<T> {
    */
   U compute_(std::vector<Var> &setOfVar, std::vector<Lit> &unitsLit,
              std::vector<Var> &freeVariable, std::ostream &out) {
+    m_nbCallCall++;
     showRun(out);
     m_nbCallCall++;
     if (!m_solver->solve(setOfVar)) return m_operation->manageBottom();
@@ -430,7 +442,12 @@ class DpllStyleMethod : public MethodManager, public Counter<T> {
     // search the next variable to branch on
     ListLit lits;
     m_heuristic->selectLitSet(connected, lits);
-    if (!lits.size()) return m_operation->manageTop(connected);
+    // REB: Generate solution for Skolemization
+    if (!lits.size())
+      return m_skolemize ? 
+	m_operation->manageSolution(connected) 
+	: m_operation->manageTop(connected);
+      //  return m_operation->manageTop(connected);
     m_nbDecisionNode++;
 
     // compile the formula where l is assigned to true

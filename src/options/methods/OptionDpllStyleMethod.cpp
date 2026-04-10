@@ -46,6 +46,10 @@ OptionDpllStyleMethod::OptionDpllStyleMethod(
 
   // set the use of the model
   exploitModel = config.exploitModel;
+
+  // REB
+  skolemize = config.skolemize;
+  
 }  // constructor
 
 }  // namespace d4

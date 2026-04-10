@@ -101,7 +101,9 @@ class CircuitWithCnfManager : public CircuitManager {
    *
    * @param[in] lits is the set of literal under consideration.
    */
-  void preUpdate(const std::vector<Lit> &lits) override;
+  // REB: Compatiblity
+  //  void preUpdate(const std::vector<Lit> &lits) override;
+  void preUpdate(std::vector<Lit> &lits) override;
 
   /**
    * @brief This function is called to undo the modification done by the

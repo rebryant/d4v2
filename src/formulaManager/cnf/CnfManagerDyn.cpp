@@ -165,7 +165,8 @@ void CnfManagerDyn::removeSatisfiedClauses(
 /**
  * @brief CnfManagerDyn::propagateTrue implementation.
  */
-void CnfManagerDyn::propagateTrue(const std::vector<Lit> &lits) {
+void CnfManagerDyn::propagateTrue(const std::vector<Lit> &lits) 
+{
   m_indexSatClauses.resize(0);
 
   for (auto &l : lits) {
@@ -198,7 +199,9 @@ void CnfManagerDyn::propagateTrue(const std::vector<Lit> &lits) {
 /**
  * @brief CnfManagerDyn::preUpdate implementation.
  */
-void CnfManagerDyn::preUpdate(const std::vector<Lit> &lits) {
+// Modify declaration
+// void CnfManagerDyn::preUpdate(const std::vector<Lit> &lits) {
+void CnfManagerDyn::preUpdate(std::vector<Lit> &lits) {
   pushStacks();
   assignListLit(lits);
 
@@ -207,7 +210,9 @@ void CnfManagerDyn::preUpdate(const std::vector<Lit> &lits) {
   propagateFalseInNotBin(lits);
 
   // search for pure literals.
-  inprocessing();
+  //  inprocessing();
+  // REB: Pure literals added to lits
+  inprocessing(lits);
 
   // unmark the clauses.
   unmarkLastClausesSaved();
